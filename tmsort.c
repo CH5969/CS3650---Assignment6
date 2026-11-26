@@ -10,6 +10,7 @@
 #include <errno.h>
 
 #include <assert.h>
+#include <pthread.h>
 
 #include "timing.h"
 
@@ -23,6 +24,26 @@
 
 /** The number of threads to be used for sorting. Default: 1 */
 int thread_count = 1;
+
+/**
+ * Data passed to a worker thread for parallel merge sort.
+ *
+ * Assumes:
+ * - nums and target are separate arrays of the same size.
+ * - Both hold the same values in [from, to) at the start.
+ * - threads >= 1 is the total threads allowed for this slice.
+ */
+typedef struct {
+  long *nums;
+  long *target;
+  int from;
+  int to;
+  int threads;
+} sort_args_t;
+
+/* Forward declaration so sort_worker can call merge_sort_parallel. */
+static void merge_sort_parallel(long nums[], int from, int to, long target[],
+                                int threads);
 
 /**
  * Print the given array of longs, an element per line.
@@ -77,6 +98,115 @@ void merge_sort_aux(long nums[], int from, int to, long target[]) {
   merge(nums, from, mid, to, target);
 }
 
+/**
+ * Pick a split index mid in (from, to) based on the thread ratio.
+ *
+ * Args:
+ * - from: start index (included)
+ * - to: end index (not included)
+ * - left_threads: threads given to the left side (>= 1)
+ * - threads: total threads for both sides (>= 2)
+ *
+ * Returns:
+ * - Split index mid strictly between from and to.
+ *
+ * Assumes:
+ * - to - from >= threads and left_threads < threads.
+ */
+static int get_split_index(int from, int to, int left_threads, int threads) {
+  assert(from < to);
+  assert(threads >= 2);
+  assert(left_threads >= 1 && left_threads < threads);
+
+  /* Use long math so large array sizes do not overflow int. */
+  long left_size = ((long)(to - from) * left_threads) / threads;
+  return from + (int)left_size;
+}
+
+/**
+ * Entry point for pthread_create. Sorts one slice in a worker thread.
+ *
+ * Args:
+ * - arg: pointer to a sort_args_t struct owned by the parent thread
+ *
+ * Returns:
+ * - Always returns NULL.
+ *
+ * Assumes:
+ * - arg is not NULL and stays valid until this thread is joined.
+ */
+static void *sort_worker(void *arg) {
+  assert(arg != NULL);
+  sort_args_t *args = (sort_args_t *)arg;
+  merge_sort_parallel(args->nums, args->from, args->to,
+                      args->target, args->threads);
+  return NULL;
+}
+
+/**
+ * Sort nums[from..to) into target[from..to) using `threads` threads.
+ *
+ * Thread plan:
+ * - Creates (threads - 1) worker threads when count >= threads, so total
+ *   threads including main equals `threads`.
+ * - A new thread sorts [from, mid) while the current thread sorts [mid, to).
+ * - Joins the worker before merge() and before return, so left_args on the
+ *   stack stays safe.
+ * - No locks needed because the two halves never touch the same indexes.
+ *
+ * Args:
+ * - nums: working array (gets overwritten)
+ * - from: start index (included)
+ * - to: end index (not included)
+ * - target: output array that holds the sorted slice when done
+ * - threads: total threads allowed for this slice (>= 1)
+ *
+ * Assumes:
+ * - nums and target are not NULL and start with the same values in [from, to).
+ */
+static void merge_sort_parallel(long nums[], int from, int to, long target[],
+                                int threads) {
+  assert(nums != NULL && target != NULL);
+  assert(from <= to && threads >= 1);
+
+  int count = to - from;
+  if (count <= 1) {
+    return;
+  }
+  if (threads == 1) {
+    merge_sort_aux(nums, from, to, target);
+    return;
+  }
+
+  /* Cap threads at item count so every branch has at least one item. */
+  if (threads > count) {
+    threads = count;
+  }
+
+  int left_threads = threads / 2;
+  int right_threads = threads - left_threads;
+  int mid = get_split_index(from, to, left_threads, threads);
+
+  sort_args_t left_args = {target, nums, from, mid, left_threads};
+  pthread_t worker;
+  int err = pthread_create(&worker, NULL, sort_worker, &left_args);
+
+  if (err != 0) {
+    /* Fall back to single-threaded sort if a thread cannot be made. */
+    log("pthread_create failed (%s); running sequentially.\n", strerror(err));
+    merge_sort_aux(target, from, mid, nums);
+    merge_sort_aux(target, mid, to, nums);
+  } else {
+    merge_sort_parallel(target, mid, to, nums, right_threads);
+    if ((err = pthread_join(worker, NULL)) != 0) {
+      fprintf(stderr, "pthread_join failed: %s\n", strerror(err));
+      exit(1);
+    }
+  }
+
+  merge(nums, from, mid, to, target);
+}
+
 
 /**
  * Sort the given array and return the sorted version.
@@ -91,7 +221,8 @@ long *merge_sort(long nums[], int count) {
 
   memmove(result, nums, count * sizeof(long));
 
-  merge_sort_aux(nums, 0, count, result);
+  int threads = thread_count > 0 ? thread_count : 1;
+  merge_sort_parallel(nums, 0, count, result, threads);
 
   return result;
 }
@@ -126,6 +257,10 @@ int allocate_load_array(int argc, char **argv, long **array) {
   size_t i = 0;
   while (i < count && fscanf(input, "%ld", &element) != EOF)  {
     (*array)[i++] = element;
+  }
+
+  if (input != stdin) {
+    fclose(input);
   }
 
   log("Read %zu items\n", i);
