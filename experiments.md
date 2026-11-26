@@ -14,99 +14,99 @@
 
 ### Input data
 
-I created a data set of [100,000,000] random integers using `./numbers 1 [100000000] > input.txt`. Running the single-threaded starter program (`./msort input.txt > /dev/null`) took ______ seconds to sort it.
+I created a data set of 200,000,000 random integers using `./numbers 1 200000000 > input.txt`. Running the single-threaded starter program (`./msort input.txt > /dev/null`) took 34.404213 seconds to sort it.
 
 ### Experiments
 
 #### 1 Thread
 
-Running processes before experiment (`ps aux | wc -l`): ______
+Running processes before experiment (`ps aux | wc -l`): 862
 
 Command used to run experiment: `MSORT_THREADS=1 ./tmsort input.txt > /dev/null`
 
 Sorting portion timings:
 
-1. ______ seconds
-2. ______ seconds
-3. ______ seconds
-4. ______ seconds
+1. 34.315732 seconds
+2. 34.698532 seconds
+3. 34.881147 seconds
+4. 34.998644 seconds
 
-Average: ______ seconds
+Average: 34.723514 seconds
 
 #### 2 Threads
 
-Running processes before experiment (`ps aux | wc -l`): ______
+Running processes before experiment (`ps aux | wc -l`): 859
 
 Command used to run experiment: `MSORT_THREADS=2 ./tmsort input.txt > /dev/null`
 
 Sorting portion timings:
 
-1. ______ seconds
-2. ______ seconds
-3. ______ seconds
-4. ______ seconds
+1. 18.346531 seconds
+2. 18.361988 seconds
+3. 18.379284 seconds
+4. 18.361165 seconds
 
-Average: ______ seconds
+Average: 18.362242 seconds
 
 #### 6 Threads
 
-Running processes before experiment (`ps aux | wc -l`): ______
+Running processes before experiment (`ps aux | wc -l`): 858
 
 Command used to run experiment: `MSORT_THREADS=6 ./tmsort input.txt > /dev/null`
 
 Sorting portion timings:
 
-1. ______ seconds
-2. ______ seconds
-3. ______ seconds
-4. ______ seconds
+1. 7.697483 seconds
+2. 7.694393 seconds
+3. 7.706530 seconds
+4. 7.692398 seconds
 
-Average: ______ seconds
+Average: 7.697701 seconds
 
 #### 12 Threads
 
-Running processes before experiment (`ps aux | wc -l`): ______
+Running processes before experiment (`ps aux | wc -l`): 860
 
 Command used to run experiment: `MSORT_THREADS=12 ./tmsort input.txt > /dev/null`
 
 Sorting portion timings:
 
-1. ______ seconds
-2. ______ seconds
-3. ______ seconds
-4. ______ seconds
+1. 5.632905 seconds
+2. 5.613879 seconds
+3. 5.604183 seconds
+4. 5.570613 seconds
 
-Average: ______ seconds
+Average: 5.605395 seconds
 
 #### 24 Threads
 
-Running processes before experiment (`ps aux | wc -l`): ______
+Running processes before experiment (`ps aux | wc -l`): 859
 
 Command used to run experiment: `MSORT_THREADS=24 ./tmsort input.txt > /dev/null`
 
 Sorting portion timings:
 
-1. ______ seconds
-2. ______ seconds
-3. ______ seconds
-4. ______ seconds
+1. 5.534159 seconds
+2. 5.520199 seconds
+3. 5.496418 seconds
+4. 5.608113 seconds
 
-Average: ______ seconds
+Average: 5.539722 seconds
 
 #### 48 Threads
 
-Running processes before experiment (`ps aux | wc -l`): ______
+Running processes before experiment (`ps aux | wc -l`): 861
 
 Command used to run experiment: `MSORT_THREADS=48 ./tmsort input.txt > /dev/null`
 
 Sorting portion timings:
 
-1. ______ seconds
-2. ______ seconds
-3. ______ seconds
-4. ______ seconds
+1. 5.581804 seconds
+2. 5.535327 seconds
+3. 5.519938 seconds
+4. 5.520510 seconds
 
-Average: ______ seconds
+Average: 5.539395 seconds
 
 
 ## Host 2: Khoury Login Server (login-students)
@@ -152,7 +152,7 @@ Sorting portion timings:
 3. 14.021468 seconds
 4. 14.156169 seconds
 
-Average: 13.934692 seconds
+Average: 13.934691 seconds
 
 #### 12 Threads
 
@@ -217,14 +217,16 @@ Average: 4.718721 seconds
 
 ## Observations and Conclusions
 
-On Host 1 (12-core Apple M2 Max), sorting got much faster as I raised the thread count from 1 ([1-thread avg] seconds) up to [best thread count] threads ([best avg] seconds). Beyond [stop-improving thread count] threads, adding more threads stopped giving clear speedups and started to slow down.
+On Host 1 (MacBook Pro, 12 cores, 200,000,000 numbers), sorting got much faster as I added more threads up to 12. The average time dropped from 34.72 seconds with 1 thread (close to `msort` at 34.40 seconds) to 18.36 seconds with 2 threads, 7.70 seconds with 6 threads, and 5.61 seconds with 12 threads (about 6.2x faster). After 12 threads, adding more threads did not really help. Both 24 threads and 48 threads took 5.54 seconds on average. Since this is my own laptop with steady background processes (around 860), the four runs for each test had very similar times.
 
-On Host 2 (24-core Khoury Login Server), sorting improved greatly from 1 thread (26.17 seconds on average, similar to `msort` at 24.83 seconds) to 2 threads (13.93 seconds, ~1.9x faster) and 12 threads (4.45 seconds, ~5.9x faster). Speedup slowed down near the 24-core count (3.69 seconds at 24 threads) and peaked at 48 threads (3.31 seconds, ~7.9x faster). At 96 threads, performance got clearly worse (4.72 seconds on average, with runs jumping up to 5.37 seconds). Because Khoury Login is a shared server with over 1,000 running processes, run times also had more variance when using many threads.
+On Host 2 (Khoury Login Server, 24 cores, 100,000,000 numbers), sorting also got much faster at first. The average time dropped from 26.17 seconds with 1 thread (similar to `msort` at 24.83 seconds) to 13.93 seconds with 2 threads and 4.45 seconds with 12 threads. At 24 threads, the time was 3.69 seconds, and at 48 threads it reached its fastest time of 3.31 seconds (about 7.9x faster). However, at 96 threads, it got slower again at 4.72 seconds on average. Because Khoury is a shared server with over 1,000 processes running, the times changed more from run to run than on my MacBook.
 
-On both machines, most of the speedup happens up to the CPU core count (12 on Host 1, 24 on Host 2), and going far past the core count hurts performance for three main reasons:
+On both machines, most of the speedup stopped near the number of CPU cores (12 cores on Host 1, 24 cores on Host 2). On Host 2, 48 threads was still a little faster than 24 threads, likely because the server handled the smaller splits well on busy cores, but going to 96 threads clearly made it slower.
 
-1. **CPU core limit and thread switching:** When there are more active threads than CPU cores, the OS must switch threads in and out of cores. This adds context-switching cost and causes more CPU cache misses.
-2. **Sequential merge work (Amdahl's Law):** After child threads finish and join, the top-level `merge()` calls still run on a single thread. Because that work is not parallel, it limits the maximum speedup no matter how many threads we add.
-3. **Memory bandwidth limit:** Sorting 100,000,000 `long` values moves two 800 MB arrays back and forth in RAM. Once memory bandwidth is saturated, extra threads wait on memory instead of sorting faster.
+Adding too many threads stops helping for three main reasons:
 
-Overall, setting `MSORT_THREADS` close to the number of CPU cores (or up to 2x cores at most) gave the best performance on both hosts.
+1. **Core limit:** A CPU can only run as many threads at the same time as it has cores. When there are too many threads, the OS has to keep switching between them, which wastes time.
+2. **Single-thread merge step:** Even when the halves are sorted in parallel, the final top-level `merge()` calls still run on one thread after joining. Because this part is not parallel, the speedup cannot reach 12x or 24x.
+3. **Memory limit:** Sorting 100M to 200M `long` numbers copies two huge arrays in RAM. Once memory gets busy, extra threads just wait for memory instead of working faster.
+
+In short, setting `MSORT_THREADS` close to the number of CPU cores gave the best results on both machines.
